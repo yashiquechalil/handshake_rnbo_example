@@ -1,93 +1,160 @@
-// The midi notes of a scale
-let notes = [ 60, 62, 64, 65, 67, 69, 71];
+import { resumeAudio } from './app.js';
 
-// For automatically playing the song
-let index = 0;
-let song = [
-  { note: 4, duration: 400, display: "D" },
-  { note: 0, duration: 200, display: "G" },
-  { note: 1, duration: 200, display: "A" },
-  { note: 2, duration: 200, display: "B" },
-  { note: 3, duration: 200, display: "C" },
-  { note: 4, duration: 400, display: "D" },
-  { note: 0, duration: 400, display: "G" },
-  { note: 0, duration: 400, display: "G" }
-];
-let trigger = 0;
-let autoplay = false;
+// --- Sequencer Globals ---
+const cols = 8; // Steps
+const rows = 7; // Notes: C D E F G A B
+const whiteNotes = [71, 69, 67, 65, 64, 62, 60]; // MIDI notes reversed
+const windowWidth = window.innerWidth;
 
-function setup() {
-  createCanvas(720, 400);
-  let div = createDiv("Click to play notes or ")
-  div.id("instructions");
-  let button = createButton("play song automatically.");
-  button.parent("instructions");
-  // Trigger automatically playing
-  button.mousePressed(function() {
-    if (!autoplay) {
-      index = 0;
-      autoplay = true;
-    }
-  });
+let grid = [];
+let currentStep = 0;
+let cellSize = 40;
+let cellHeight = 20;
+let bpm = 120;
+let tempo = (60 / bpm) * 1000;
+let deviceRef = null;
+
+export function initSequencer(device) {
+    deviceRef = device;
+    cellSize = windowWidth / cols;
+    cellHeight = cellSize / 2;
+
+    createGrid();
+    const canvas = createCanvas();
+    const ctx = canvas.getContext("2d");
+
+    createBPMControl(canvas);
+    createStartStopButton(canvas);
+    setupCanvasClick(canvas, ctx);
+    drawGrid(ctx);
+
+    startSequencer(ctx);
 }
 
-
-
-function draw() {
-
-  // If we are autoplaying and it's time for the next note
-  if (autoplay && millis() > trigger){
-    playNote(notes[song[index].note], song[index].duration);
-    trigger = millis() + song[index].duration;
-    // Move to the next note
-    index ++;
-  // We're at the end, stop autoplaying.
-  } else if (index >= song.length) {
-    autoplay = false;
-    //index = 1;
-  }
-
-
-  // Draw a keyboard
-
-  // The width for each key
-  let w = width / notes.length;
-  for (let i = 0; i < notes.length; i++) {
-    let x = i * w;
-    // If the mouse is over the key
-    if (mouseX > x && mouseX < x + w && mouseY < height) {
-      // If we're clicking
-      if (mouseIsPressed) {
-        fill(0,0,0);
-      // Or just rolling over
-      } else {
-        fill(127);
-      }
-    } else {
-      fill(200);
+function createGrid() {
+    for (let i = 0; i < cols; i++) {
+        grid[i] = Array(rows).fill(false);
     }
-
-    // Or if we're playing the song, let's highlight it too
-    if (autoplay && i === song[index-1].note) {
-      fill(100,255,200);
-    }
-
-    // Draw the key
-    rect(x, 0, w-1, height-1);
-  }
-
 }
 
-// When we click
-function mousePressed(event) {
-  if(event.button == 0 && event.clientX < width && event.clientY < height) {
-    // Map mouse to the key index
-    let key = floor(map(mouseX, 0, width, 0, notes.length));
-    playNote(notes[key]);
-  }
+function createCanvas() {
+    const canvas = document.createElement("canvas");
+    canvas.width = windowWidth;
+    canvas.height = rows * cellHeight;
+    canvas.style.border = "1px solid gray";
+    canvas.style.marginTop = "20px";
+    canvas.id = "seq-canvas";
+    document.body.appendChild(canvas);
+    return canvas;
 }
 
-// Fade it out when we release
-function mouseReleased() {
- // envelope
+function createBPMControl(beforeElement) {
+    const bpmDiv = document.createElement("div");
+    bpmDiv.style.margin = "20px 0";
+
+    const bpmLabel = document.createElement("label");
+    bpmLabel.textContent = "BPM: ";
+    bpmLabel.setAttribute("for", "bpm-input");
+
+    const bpmInput = document.createElement("input");
+    bpmInput.type = "number";
+    bpmInput.id = "bpm-input";
+    bpmInput.value = bpm;
+    bpmInput.min = 30;
+    bpmInput.max = 300;
+    bpmInput.style.width = "60px";
+    bpmInput.style.marginRight = "10px";
+
+    bpmInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            bpm = parseInt(bpmInput.value) || 120;
+            tempo = (60 / bpm) * 1000;
+        }
+    });
+
+    bpmDiv.append(bpmLabel, bpmInput);
+    document.body.insertBefore(bpmDiv, beforeElement);
+}
+
+function createStartStopButton(beforeElement) {
+    const startButton = document.createElement("button");
+    startButton.className = "start-button";
+
+    const playIcon = document.createElement("span");
+    playIcon.textContent = "▶";
+    playIcon.className = "icon play-icon";
+
+    const pauseIcon = document.createElement("span");
+    pauseIcon.textContent = "❚❚";
+    pauseIcon.className = "icon pause-icon";
+    pauseIcon.style.display = "none";
+
+    startButton.append(playIcon, pauseIcon);
+    document.body.insertBefore(startButton, beforeElement);
+
+    startButton.addEventListener("click", resumeAudio);
+}
+
+function setupCanvasClick(canvas, ctx) {
+    canvas.addEventListener("click", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) / cellSize);
+        const y = Math.floor((e.clientY - rect.top) / cellHeight);
+
+        if (grid[x] && typeof grid[x][y] !== "undefined") {
+            grid[x][y] = !grid[x][y];
+            drawGrid(ctx);
+        }
+    });
+}
+
+function drawGrid(ctx) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < rows; j++) {
+            const isActive = grid[i][j];
+            const isCurrentStep = i === currentStep;
+            ctx.fillStyle = isActive
+                ? (isCurrentStep ? "#00FFAA" : "#FFF")
+                : (isCurrentStep ? "#333" : "#777");
+            ctx.strokeStyle = "#222";
+            ctx.fillRect(i * cellSize, j * cellHeight, cellSize - 1, cellHeight - 1);
+            ctx.strokeRect(i * cellSize, j * cellHeight, cellSize - 1, cellHeight - 1);
+        }
+    }
+}
+
+function startSequencer(ctx) {
+    let running = true;
+    
+    function step() {
+        if (!running) return;
+
+        for (let j = 0; j < rows; j++) {
+            if (grid[currentStep][j]) {
+                triggerRNBONote(whiteNotes[j], 100);
+            }
+        }
+
+        currentStep = (currentStep + 1) % cols;
+        drawGrid(ctx);
+        setTimeout(step, tempo);
+    }
+
+    step();
+}
+
+function triggerRNBONote(note, duration = 250) {
+    if (!deviceRef) return;
+
+    const midiChannel = 0;
+    const noteOn = [144 + midiChannel, note, 100];
+    const noteOff = [128 + midiChannel, note, 0];
+    const tNow = deviceRef.context.currentTime * 1000;
+
+    const onEvent = new RNBO.MIDIEvent(tNow, 0, noteOn);
+    const offEvent = new RNBO.MIDIEvent(tNow + duration, 0, noteOff);
+
+    deviceRef.scheduleEvent(onEvent);
+    deviceRef.scheduleEvent(offEvent);
 }

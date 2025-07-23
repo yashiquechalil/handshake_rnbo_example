@@ -80,3 +80,31 @@ h2, em {
   background-color: #4CAF50;
   border-color: #2E7D32;
 }
+
+  /* Button styling */
+.start-button {
+    background-color: #333; /* White background */
+    border: none; /* No border */
+    border-radius: 50%; /* Circular button */
+    width: 80px; /* Button width */
+    height: 80px; /* Button height */
+    display: flex; /* Flexbox for centering icons */
+    justify-content: center; /* Horizontally center */
+    align-items: center; /* Vertically center */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    position: fixed; /* Fixed positioning */
+    left: 90%; /* Horizontal position */
+    top: 80%; /* Vertical position */
+    transform: translate(-50%, -50%); /* Centering adjustment */
+    cursor: pointer; /* Pointer cursor on hover */
+}
+
+/* Play icon specific styling */
+.play-icon {
+    display: inline; /* Ensure visibility */
+}
+
+/* Pause icon specific styling */
+.pause-icon {
+    display: none; /* Hidden by default */
+}
