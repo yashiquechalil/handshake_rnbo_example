@@ -83,20 +83,15 @@ h2, em {
 
   /* Button styling */
 .start-button {
-    background-color: #333; /* White background */
-    border: none; /* No border */
-    border-radius: 50%; /* Circular button */
-    width: 80px; /* Button width */
-    height: 80px; /* Button height */
-    display: flex; /* Flexbox for centering icons */
-    justify-content: center; /* Horizontally center */
-    align-items: center; /* Vertically center */
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-    position: fixed; /* Fixed positioning */
-    left: 90%; /* Horizontal position */
-    top: 80%; /* Vertical position */
-    transform: translate(-50%, -50%); /* Centering adjustment */
-    cursor: pointer; /* Pointer cursor on hover */
+    background-color: #595959; 
+    border: none; 
+    width: 80px; 
+    height: 30px;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); 
+    position: relative; 
+    cursor: pointer;
 }
 
 /* Play icon specific styling */
